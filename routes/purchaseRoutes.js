@@ -7,7 +7,7 @@ const router = express.Router();
 // GET /api/purchases/
 router.get("/", [auth], getDailyRegister);
 
-// GET /api/purchases/summary?period=week/ofset=-1&sector=limpieza
+// GET /api/purchases/summary?period=week&ofset=-1&sector=limpieza
 router.get("/summary", [auth], getSummary);
 
 // GET /api/purchases/:date
