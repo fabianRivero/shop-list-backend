@@ -1,5 +1,11 @@
 import PurchaseLog from '../models/PurchaseLog.js';
 import dayjs from 'dayjs';
+import utc from "dayjs/plugin/utc.js";
+import timezone from "dayjs/plugin/timezone.js";
+import { v4 as uuidv4 } from "uuid";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 //obtener todos los dias
 export async function getDailyRegister(req, res){
@@ -7,39 +13,55 @@ export async function getDailyRegister(req, res){
     const userId = req.user.id;
 
     const dailyRegister = await PurchaseLog.find({ userId });
-    res.status(200).json({ dailyRegister: dailyRegister });
+    res.status(200).json({ register: dailyRegister });
   } catch (err) {
     res.status(500).send({ message: "Server Error" + err.message });
   }
 }
 
-//obtener un dia en especifico
-export async function getDayRegister(req, res){
+  //obtener un dia en especifico
+export async function getDayRegister(req, res) {
   try {
-    const { date } = req.params;
+    const { date } = req.params; 
+    const { timeZone = "UTC" } = req.query; 
     const userId = req.user.id;
-    
-    const dayRegister = await PurchaseLog.find({ userId, date: new Date(date) });
-    res.status(200).json({ dayRegister: dayRegister });
+
+    // calcular inicio y fin del día en la zona del usuario
+    const startOfDay = dayjs.tz(date, timeZone).startOf("day").utc().toDate();
+    const endOfDay   = dayjs.tz(date, timeZone).endOf("day").utc().toDate();
+
+    const dayRegister = await PurchaseLog.find({
+      userId,
+      date: { $gte: startOfDay, $lte: endOfDay }
+    });
+
+    res.status(200).json({ register: dayRegister });
   } catch (err) {
-    res.status(500).send({ message: "Server Error" + err.message });
+    res.status(500).send({ message: "Server Error " + err.message });
   }
 }
 
 //crear compra
 export async function createPurchase(req, res) {
   try {
-    const { date, purchase } = req.body;
+    const { date, purchases, timeZone = "UTC" } = req.body;
     const userId = req.user.id;
+    if (!Array.isArray(purchases) || purchases.length === 0) {
+      return res.status(400).json({ message: "No purchases provided" });
+    }
+    
+    let purchase = purchases[0];
+    if (!purchase.purchaseId) {
+      purchase.purchaseId = uuidv4();
+    }
+
+    const normalizedDate = dayjs.tz(date, timeZone).startOf("day").utc().toDate();
 
     await PurchaseLog.findOneAndUpdate(
-      { userId, date: date },
+      { userId, date: normalizedDate },
       {
         $push: { purchases: purchase },
-        $setOnInsert: {
-          userId,
-          date: date,
-        }
+        $setOnInsert: { userId, date: normalizedDate }
       },
       { upsert: true }
     );
@@ -56,7 +78,6 @@ export async function createPurchase(req, res) {
 export async function updatePurchase(req, res){
   try {
     const { date } = req.params;
-    const userId = req.user.id;
     const { purchaseId, purchaseQuantity, price } = req.body;
 
     if (!purchaseId || typeof purchaseQuantity !== 'number' || typeof price !== 'number') {
@@ -65,18 +86,25 @@ export async function updatePurchase(req, res){
       });
     }
 
-    await PurchaseLog.findOneAndUpdate(
-      { userId, date: new Date(date), 'purchases.purchaseId': purchaseId }, 
-      {
-        $set: {
-          'purchases.$.purchaseQuantity': purchaseQuantity,
-          'purchases.$.price': price
-        }
-      },
-      { new: true } 
-    );
+    const startOfDay = dayjs.tz(date, req.body.timeZone || "UTC").startOf("day").utc().toDate();
+    const endOfDay = dayjs.tz(date, req.body.timeZone || "UTC").endOf("day").utc().toDate();
 
-    res.status(200).json({ message: 'Purchases updated successfully' });
+
+    const log = await PurchaseLog.findOne({ 
+      date: { $gte: startOfDay, $lte: endOfDay }, 
+      'purchases.purchaseId': purchaseId });
+
+    if (!log) return res.status(404).json({ message: 'Purchase not found' });
+
+    const purchase = log.purchases.find(p => p.purchaseId === purchaseId);
+    if (!purchase) return res.status(404).json({ message: 'Purchase not found' });
+
+    purchase.purchaseQuantity = purchaseQuantity;
+    purchase.price = price;
+
+    await log.save();
+
+    res.status(200).json(purchase);
   } catch (err) {
     res.status(500).json({ message: 'Server Error: ' + err.message });
   }
@@ -88,20 +116,27 @@ export async function deletePurchase(req, res){
   try {
     const { date } = req.params;
     const userId = req.user.id;
-    const { purchaseId } = req.body;
+    const { timeZone, purchaseId } = req.body;
 
     if (!purchaseId) {
-      return res.status(404).json({ message: 'purchaseId is required' });
+      return res.status(400).json({ message: 'purchaseId is required' });
     }
 
+    const localDate = dayjs.tz(date, timeZone).startOf("day").utc().toDate();
+
     const result = await PurchaseLog.findOneAndUpdate(
-      { userId, date: new Date(date) },
+      { userId, date: localDate },
       { $pull: { purchases: { purchaseId } } },
       { new: true }
     );
 
     if (!result) {
       return res.status(404).json({ message: 'Purchase log not found for this date' });
+    }
+
+    if (result.purchases.length === 0) {
+      await PurchaseLog.deleteOne({ _id: result._id });
+      return res.status(200).json({ message: 'Purchase deleted and shopList removed (empty)' });
     }
 
     res.status(200).json({ message: 'Purchase(s) deleted successfully' });
@@ -112,50 +147,57 @@ export async function deletePurchase(req, res){
 
 //obtener dias por periodo de tiempo
 
+function getUtcDayRange(baseDate, timeZone, period, offset = 0) {
+  const referenceDate = dayjs.tz(baseDate, timeZone).add(offset, period);
+
+  let startDate, endDate;
+
+  switch (period) {
+    case "day":
+      startDate = referenceDate.startOf("day").utc().toDate();
+      endDate = referenceDate.endOf("day").utc().toDate();
+      break;
+    case "week":
+      startDate = referenceDate.startOf("isoWeek").utc().toDate();
+      endDate = referenceDate.endOf("isoWeek").utc().toDate();
+      break;
+    case "month":
+      startDate = referenceDate.startOf("month").utc().toDate();
+      endDate = referenceDate.endOf("month").utc().toDate();
+      break;
+    case "year":
+      startDate = referenceDate.startOf("year").utc().toDate();
+      endDate = referenceDate.endOf("year").utc().toDate();
+      break;
+    default:
+      throw new Error("Invalid period");
+  }
+
+  return { startDate, endDate };
+}
+
 export async function getSummary(req, res) {
   try {
-    const { period = 'day', offset = 0, sector } = req.query;
+    const { period = "day", offset = 0, sector, baseDate = new Date(), timeZone = "UTC" } = req.query;
     const userId = req.user.id;
 
-    const baseDate = dayjs(); 
-    const shift = parseInt(offset, 10);
+    const { startDate, endDate } = getUtcDayRange(baseDate, timeZone, period, parseInt(offset, 10));
 
-    let startDate, endDate;
-
-    if (period === 'day') {
-      baseDate.add(shift, 'day');
-    } else if (period === 'week') {
-      const targetDate = baseDate.add(shift, 'week');
-      startDate = targetDate.startOf('isoWeek').toDate();
-      endDate = targetDate.endOf('isoWeek').toDate();
-    } else if (period === 'month') {
-      const targetDate = baseDate.add(shift, 'month');
-      startDate = targetDate.startOf('month').toDate();
-      endDate = targetDate.endOf('month').toDate();
-    } else if (period === 'year') {
-      const targetDate = baseDate.add(shift, 'year');
-      startDate = targetDate.startOf('year').toDate();
-      endDate = targetDate.endOf('year').toDate();
-    } else {
-      return res.status(400).json({ message: 'Invalid period' });
-    }
-
-    // Armar filtro base
     const query = {
       userId,
       date: { $gte: startDate, $lte: endDate }
     };
 
-    // Agregar sector si fue enviado
     if (sector) {
-      query['purchases.sector'] = sector;
+      query["purchases.sector"] = sector;
     }
 
     const logs = await PurchaseLog.find(query);
 
-    res.json({ logs, period, startDate, endDate });
+    res.status(200).json({
+      register: { logs, period, startDate, endDate, timeZone }
+    });
   } catch (err) {
-    res.status(500).json({ message: 'Error fetching summary: ' + err.message });
+    res.status(500).json({ message: "Error fetching summary: " + err.message });
   }
 }
-

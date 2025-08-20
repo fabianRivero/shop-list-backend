@@ -10,7 +10,7 @@ const itemSchema = new mongoose.Schema(
     unit: { type: String, required: true },
     price: { type: Number, required: true },
     currency: { type: String, required: true },
-    brand: { type: String },
+    brand: { type: String, default: "Sin especificar" },
     sector: { type: String, default: "other" },
   },
   {
