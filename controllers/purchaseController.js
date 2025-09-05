@@ -3,6 +3,7 @@ import dayjs from 'dayjs';
 import utc from "dayjs/plugin/utc.js";
 import timezone from "dayjs/plugin/timezone.js";
 import { v4 as uuidv4 } from "uuid";
+import Budget from "../models/Budget.js";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -46,6 +47,7 @@ export async function createPurchase(req, res) {
   try {
     const { date, purchases, timeZone = "UTC" } = req.body;
     const userId = req.user.id;
+
     if (!Array.isArray(purchases) || purchases.length === 0) {
       return res.status(400).json({ message: "No purchases provided" });
     }
@@ -66,6 +68,33 @@ export async function createPurchase(req, res) {
       { upsert: true }
     );
 
+    const month = dayjs(date).month() + 1; 
+    const year = dayjs(date).year();
+
+    const budget = await Budget.findOne({ userId, month, year });
+
+    if (budget) {
+      const exists = budget.sectors.some(s => s.sector === purchase.sector);
+
+      if (!exists) {
+        budget.sectors.push({
+          sector: purchase.sector,
+          amount: 0
+        });
+        await budget.save();
+      }
+    } else {
+      await Budget.create({
+        userId,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        general: 0,
+        month,
+        year,
+        sectors: [{ sector: purchase.sector, amount: 0 }]
+      });
+    }
+
     res.status(201).json({ message: 'Purchase(s) registered successfully' });
   } catch (error) {
     console.error('Error registering purchase:', error);
@@ -78,7 +107,8 @@ export async function createPurchase(req, res) {
 export async function updatePurchase(req, res){
   try {
     const { date } = req.params;
-    const { purchaseId, purchaseQuantity, price } = req.body;
+    const { purchaseId, purchaseQuantity, price, sector, timeZone = "UTC" } = req.body;
+    const userId = req.user.id;
 
     if (!purchaseId || typeof purchaseQuantity !== 'number' || typeof price !== 'number') {
       return res.status(400).json({
@@ -89,8 +119,8 @@ export async function updatePurchase(req, res){
     const startOfDay = dayjs.tz(date, req.body.timeZone || "UTC").startOf("day").utc().toDate();
     const endOfDay = dayjs.tz(date, req.body.timeZone || "UTC").endOf("day").utc().toDate();
 
-
     const log = await PurchaseLog.findOne({ 
+      userId,
       date: { $gte: startOfDay, $lte: endOfDay }, 
       'purchases.purchaseId': purchaseId });
 
@@ -102,7 +132,36 @@ export async function updatePurchase(req, res){
     purchase.purchaseQuantity = purchaseQuantity;
     purchase.price = price;
 
+    if (sector) {
+      purchase.sector = sector;
+    }
+
     await log.save();
+
+    if (sector) {
+      const month = dayjs(date).month() + 1;
+      const year = dayjs(date).year();
+
+      const budget = await Budget.findOne({ userId, month, year });
+
+      if (budget) {
+        const exists = budget.sectors.some(s => s.sector === sector);
+        if (!exists) {
+          budget.sectors.push({ sector, amount: 0 });
+          await budget.save();
+        }
+      } else {
+        await Budget.create({
+          userId,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          general: 0,
+          month,
+          year,
+          sectors: [{ sector, amount: 0 }]
+        });
+      }
+    }
 
     res.status(200).json(purchase);
   } catch (err) {
@@ -145,8 +204,6 @@ export async function deletePurchase(req, res){
   }
 };
 
-//obtener dias por periodo de tiempo
-
 function getUtcDayRange(baseDate, timeZone, period, offset = 0) {
   const referenceDate = dayjs.tz(baseDate, timeZone).add(offset, period);
 
@@ -176,7 +233,9 @@ function getUtcDayRange(baseDate, timeZone, period, offset = 0) {
   return { startDate, endDate };
 }
 
-export async function getSummary(req, res) {
+//obtener compras por caracteristicas especificas
+
+export async function getPurchases(req, res) {
   try {
     const { period = "day", offset = 0, sector, baseDate = new Date(), timeZone = "UTC" } = req.query;
     const userId = req.user.id;

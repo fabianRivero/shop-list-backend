@@ -5,6 +5,7 @@ import morgan from "morgan";
 import usersRoutes from "./routes/usersRoutes.js";
 import itemsRoutes from "./routes/itemsRoutes.js";
 import purchaseRoutes from './routes/purchaseRoutes.js';
+import summaryRoutes from './routes/summaryRoutes.js';
 import cors from 'cors';
 
 const app = express();
@@ -30,5 +31,6 @@ app.use(cors({
 app.use("/api/users", usersRoutes);
 app.use("/api/items", itemsRoutes);
 app.use('/api/purchases', purchaseRoutes);
+app.use('/api/', summaryRoutes);
 
 export default app;
