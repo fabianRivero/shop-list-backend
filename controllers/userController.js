@@ -38,9 +38,6 @@ export async function signup(req, res){
             id: user.id,
         },
         process.env.JWT_SECRET,
-        {
-            expiresIn: "6h",
-        }
         );
 
 
@@ -80,9 +77,6 @@ export async function login(req, res){
       isConfigured: user.isConfigured,
     },
     process.env.JWT_SECRET,
-    {
-      expiresIn: "6h",
-    }
   );
 
   res.status(200).header("Authorization", token).json({
