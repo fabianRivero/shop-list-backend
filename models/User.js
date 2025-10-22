@@ -14,7 +14,8 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
     password: { type: String, required: true, minlength: 8 },
-    role: { type: String, required: true, enum: ["free-user", "sub-user"], default: "free-user" },
+    currency: { type: String, default: "NAN"},
+    isConfigured: { type: Boolean, required: true, default: false },
   },
   {
     toJSON: {

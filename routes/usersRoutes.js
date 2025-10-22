@@ -1,16 +1,19 @@
 import express from "express";
-import { getUsers, login, signup } from "../controllers/userController.js";
+import { deleteUser, getUser, getUsers, login, signup, updateUser } from "../controllers/userController.js";
+import auth from "../middlewares/auth.js";
 
 const router = express.Router();
 
-// GET /api/users/
 router.get("/", getUsers);
 
+router.get("/:id", getUser);
 
-// POST api/users/signup
 router.post("/signup", signup);
 
-// POST api/users/login
 router.post("/login", login);
+
+router.delete("/delete", [auth], deleteUser);
+
+router.put("/update", [auth], updateUser);
 
 export default router;

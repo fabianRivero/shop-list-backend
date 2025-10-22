@@ -5,7 +5,7 @@ const SummarySchema = new mongoose.Schema({
   id: { type: String, default: uuidv4, required: true, unique: true },
   periodDate: { type: String, required: true },
   userId: { type: String, ref: 'free-user', required: true },
-  sector: { type: String }, // ejemplo: "alimentos"
+  sector: { type: String }, 
   stadistics: {
     type: Object,
     properties: {

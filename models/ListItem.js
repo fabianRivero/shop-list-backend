@@ -9,7 +9,6 @@ const itemSchema = new mongoose.Schema(
     quantity: { type: Number, required: true },
     unit: { type: String, required: true },
     price: { type: Number, required: true },
-    currency: { type: String, required: true },
     brand: { type: String, default: "Sin especificar" },
     sector: { type: String, default: "other" },
   },

@@ -10,14 +10,11 @@ import cors from 'cors';
 
 const app = express();
 
-const DB_URL =
-  process.env.NODE_ENV === "test"
-    ? "mongodb://localhost:27017/shop-list-test"
-    : process.env.DB_URL || "mongodb://localhost:27017/shop-list";
+const uri = process.env.URI
 
 mongoose
-  .connect(DB_URL)
-  .then(() => console.log(`Connected to DB: ${DB_URL}`))
+  .connect(uri)
+  .then(() => console.log(`Connected to DB: ${uri}`))
   .catch((err) => console.error("Failed to connect to MongoDB", err));
 
 app.use(morgan("dev"));

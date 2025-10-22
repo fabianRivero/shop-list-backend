@@ -30,7 +30,6 @@ export async function createItem(req, res){
         unit: req.body.unit,
         quantity: req.body.quantity,
         price: req.body.price,
-        currency: req.body.currency,
         brand: req.body.brand === "" ? "Sin Especificar" : req.body.brand
     });
 

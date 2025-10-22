@@ -12,7 +12,6 @@ const purchaseLogSchema = new mongoose.Schema({
       purchaseQuantity: { type: Number, required: true },
       unit: { type: String, required: true },
       price: { type: Number, required: true },
-      currency: { type: String, required: true },
       brand: { type: String },
       sector: { type: String, default: 'other' },
       purchaseId: { type: String, default: uuidv4, required: true },

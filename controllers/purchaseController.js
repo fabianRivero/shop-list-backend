@@ -8,7 +8,6 @@ import Budget from "../models/Budget.js";
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
-//obtener todos los dias
 export async function getDailyRegister(req, res){
   try {
     const userId = req.user.id;
@@ -20,14 +19,12 @@ export async function getDailyRegister(req, res){
   }
 }
 
-  //obtener un dia en especifico
 export async function getDayRegister(req, res) {
   try {
     const { date } = req.params; 
     const { timeZone = "UTC" } = req.query; 
     const userId = req.user.id;
 
-    // calcular inicio y fin del día en la zona del usuario
     const startOfDay = dayjs.tz(date, timeZone).startOf("day").utc().toDate();
     const endOfDay   = dayjs.tz(date, timeZone).endOf("day").utc().toDate();
 
@@ -42,7 +39,6 @@ export async function getDayRegister(req, res) {
   }
 }
 
-//crear compra
 export async function createPurchase(req, res) {
   try {
     const { date, purchases, timeZone = "UTC" } = req.body;
@@ -101,8 +97,6 @@ export async function createPurchase(req, res) {
     res.status(500).json({ message: 'Internal server error' });
   }
 }
-
-//editar compra
 
 export async function updatePurchase(req, res){
   try {
@@ -169,8 +163,6 @@ export async function updatePurchase(req, res){
   }
 };
 
-//borrar compra
-
 export async function deletePurchase(req, res){
   try {
     const { date } = req.params;
@@ -232,8 +224,6 @@ function getUtcDayRange(baseDate, timeZone, period, offset = 0) {
 
   return { startDate, endDate };
 }
-
-//obtener compras por caracteristicas especificas
 
 export async function getPurchases(req, res) {
   try {

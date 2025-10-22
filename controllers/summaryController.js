@@ -23,26 +23,16 @@ export async function normalizeMonthlyBudget(userId, year, month) {
   }
 
   const sumSectors = budget.sectors
-    .filter(s => s.sector !== "otros")
     .reduce((acc, s) => acc + s.budget, 0);
 
   if (budget.general < sumSectors) {
     budget.general = sumSectors;
-  } else if (budget.general > sumSectors) {
-    const excedent = budget.general - sumSectors;
-
-    const other = budget.sectors.find(s => s.sector === "otros");
-    if (other) {
-      other.budget = excedent;
-    } else {
-      budget.sectors.push({ sector: "otros", budget: excedent, spent: 0, isAuto: true });
-    }
-  }
+  } 
 
   await budget.save();
   return budget;
 }
-//obtener todos gastos y presupuestos
+
 export async function getSummary(req, res) {
   try {
     const userId = req.user.id;
@@ -109,7 +99,6 @@ export async function getSummary(req, res) {
   }
 }
 
-//actualizar presupuesto general
 export async function updateGeneralBudget(req, res) {
   const userId = req.user.id;
   const { year, month } = req.params;
@@ -134,7 +123,6 @@ export async function updateGeneralBudget(req, res) {
   }
 }
 
-//actualizar presupuestos por sector
 export async function updateSectorBudget(req, res) {
   try {
     const userId = req.user.id;
@@ -175,10 +163,8 @@ export async function deleteGeneralBudget(req, res){
     }
     
     getBudget.general = 0;
-      
-    getBudget.sectors = getBudget.sectors.filter(
-      s => !(s.sector === "otros" && s.isAuto)
-    );
+
+    getBudget.sectors = [];
 
     await getBudget.save();
 
