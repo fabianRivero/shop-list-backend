@@ -14,7 +14,6 @@ const uri = process.env.URI
 
 mongoose
   .connect(uri)
-  .then(() => console.log(`Connected to DB: ${uri}`))
   .catch((err) => console.error("Failed to connect to MongoDB", err));
 
 app.use(morgan("dev"));
