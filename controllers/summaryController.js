@@ -55,10 +55,10 @@ export async function getSummary(req, res) {
       allPurchases = allPurchases.filter(p => p.sector === sector);
     }
 
-    const totalSpent = allPurchases.reduce((acc, p) => acc + (p.price * p.purchaseQuantity), 0);
+    const totalSpent = allPurchases.reduce((acc, p) => acc + (p.price * (p.purchaseQuantity / p.quantity )), 0);
 
     const spentBySector = allPurchases.reduce((acc, p) => {
-      acc[p.sector] = (acc[p.sector] || 0) + (p.price * p.purchaseQuantity);
+      acc[p.sector] = (acc[p.sector] || 0) + (p.price * (p.purchaseQuantity / p.quantity ));
       return acc;
     }, {});
 

@@ -20,7 +20,7 @@ app.use(morgan("dev"));
 app.use(express.json());
 
 app.use(cors({
-  origin: `${process.env.URL_PAGE}`,
+  origin: `${process.env.URL_PAGE}` || "http://localhost:5173/",
   credentials: true 
 }));
 

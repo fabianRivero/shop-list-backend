@@ -52,7 +52,9 @@ export async function createPurchase(req, res) {
     if (!purchase.purchaseId) {
       purchase.purchaseId = uuidv4();
     }
-
+console.log('🕒 Incoming date:', date);
+console.log('🕒 Type:', typeof date);
+console.log('🕒 Timezone:', timeZone);
     const normalizedDate = dayjs.tz(date, timeZone).startOf("day").utc().toDate();
 
     await PurchaseLog.findOneAndUpdate(
