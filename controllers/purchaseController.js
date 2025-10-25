@@ -52,11 +52,8 @@ export async function createPurchase(req, res) {
     if (!purchase.purchaseId) {
       purchase.purchaseId = uuidv4();
     }
-console.log('🕒 Incoming date:', date);
-console.log('🕒 Type:', typeof date);
-console.log('🕒 Timezone:', timeZone);
-    const normalizedDate = dayjs.tz(date, timeZone).startOf("day").utc().toDate();
 
+    const normalizedDate = dayjs.tz(date, timeZone).startOf("day").utc().toDate();
     await PurchaseLog.findOneAndUpdate(
       { userId, date: normalizedDate },
       {
@@ -189,7 +186,23 @@ export async function deletePurchase(req, res){
 
     if (result.purchases.length === 0) {
       await PurchaseLog.deleteOne({ _id: result._id });
-      return res.status(200).json({ message: 'Purchase deleted and shopList removed (empty)' });
+      const month = dayjs(date).month() + 1;
+      const year = dayjs(date).year();
+
+      const otherPurchases = await PurchaseLog.findOne({
+        userId,
+        date: {
+          $gte: dayjs(`${year}-${month}-01`).startOf('month').toDate(),
+          $lte: dayjs(`${year}-${month}-01`).endOf('month').toDate(),
+        },
+      });
+
+      
+      if (!otherPurchases) {
+        await Budget.deleteOne({ userId, month, year });
+      }
+
+      return res.status(200).json({ message: 'Purchase deleted and empty log + budget removed' });
     }
 
     res.status(200).json({ message: 'Purchase(s) deleted successfully' });
