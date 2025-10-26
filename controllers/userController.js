@@ -123,8 +123,19 @@ export async function updateUser(req, res){
 
     await user.save();
 
+      const token = jwt.sign(
+      {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        currency: user.currency,
+        isConfigured: user.isConfigured,
+      },
+      process.env.JWT_SECRET,
+    );
+
     res.status(200).json({
-      message: "User updated",
+      token,
       user: {
         email: user.email,
         username: user.username,
